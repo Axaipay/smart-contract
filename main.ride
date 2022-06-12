@@ -1,1 +1,95 @@
+{-# STDLIB_VERSION 5     #-}
+{-# SCRIPT_TYPE ACCOUNT  #-}
+{-# CONTENT_TYPE DAPP    #-}
 
+### keys ###
+
+#value data account
+let main = "main_asset"
+let l = "lp_asset_"
+let a1 = "swap_asset1_"
+let st = "address_staker_"
+let sst = "address_pool_"
+let swp = "address_swap_"
+let a2 = "swap_asset2_"
+let aa1 = "pool_1_"
+let aa2 = "pool_2_"
+let st1 = "staker_address"
+let type = "type_"
+let sa = "STAKING_AMOUNT_"
+let la = "LEASE_AMOUNT_"
+let ix = "ID_"
+let rateFee = "percentage_rate_fee"
+
+#smart contract address
+let contractAddress = Address(this.bytes)
+
+#standard exchange rate
+let exchangeRate = 5
+
+#address is valid
+func getAddressIfValid(address: String) = toString(valueOrErrorMessage(addressFromString(address), "Can't parse " + address + " as address"))
+
+#assetId is valid
+func getAssetIfValid(assetId: String) = toBase58String(valueOrErrorMessage(assetInfo(fromBase58String(assetId)).value().id, "Asset Id: " + assetId +  " is invalid."))
+
+#config
+let ac = "activate"
+let poolAc = "activate_pools"
+let swapAc = "activate_swap"
+let liquidityAc = "activate_liquidity"
+
+#assets
+let usdn = "usdn_asset"
+let usdt = "usdt_asset"
+let usdc = "usdc_asset"
+let ngnn = "ngnn_asset"
+let aWaves = "accept_waves"
+
+#### Constructor for start smart contract ####
+@Callable(i)
+func constructor(MainAssetId: String, UsdnAssetId: String, UsdtAssetId:String, UsdcAssetId: String, NgnnAssetId: String, acceptWaves: Boolean, percentageRate: Int) = {
+    if ((i.caller == this))
+      then [StringEntry(main, MainAssetId), StringEntry(usdn, UsdnAssetId), StringEntry(usdc, UsdcAssetId), StringEntry(usdt, UsdtAssetId), StringEntry(ngnn, NgnnAssetId), BooleanEntry(aWaves, acceptWaves), IntegerEntry(rateFee, percentageRate),BooleanEntry(ac, true), BooleanEntry(swapAc, false), BooleanEntry(poolAc, false), BooleanEntry(liquidityAc, false)]
+    else throw("Only the Admin itself can invoke this function")
+}
+
+#### Admin settings and options ####
+
+#power on/off dApp
+@Callable(i)
+func activate(v: Boolean) = {
+    if((i.caller == this))
+      then [BooleanEntry(ac, v)]
+    else throw("Only the Admin itself can invoke this function")
+}
+
+#activate and desactivate pools/swap/liquidity
+@Callable(i)
+func maintenance(pools: Boolean, swap: Boolean, liquidity: Boolean) = {
+  if((i.caller == this))
+   then [BooleanEntry(poolAc, pools), BooleanEntry(swapAc, swap), BooleanEntry(liquidityAc, liquidity)]
+  else throw("Only the Admin itself can invoke this function")
+}
+
+#edit percentual rate for all fees
+@Callable(i)
+func percentualRateFeeEdit(rate: Int) = {
+  if((i.caller == this))
+   then [BooleanEntry(rateFee, rate)
+  else throw("Only the Admin itself can invoke this function")
+}
+
+#edit accept Waves
+@Callable(i)
+func acceptWaves(activate: Boolean) = {
+  if((i.caller == this))
+   then [BooleanEntry(aWaves, activate)]
+  else throw("Only the Admin itself can invoke this function")
+}
+
+@Verifier(tx)
+func verify() = match tx {
+    case _ => 
+        sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+}
