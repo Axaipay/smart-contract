@@ -88,6 +88,36 @@ func acceptWaves(activate: Boolean) = {
   else throw("Only the Admin itself can invoke this function")
 }
 
+#remove swap and pool
+# @Callable(i)
+# func removeSwapAndPool(pairName: String) = {
+#   let PMAA = getStringValue(this, pairName)
+#   if((i.caller == this))
+#      then let bbentry = [DeleteEntry(pairName),DeleteEntry("POOL_" + PMAA),DeleteEntry("lp_asset_"+PMAA),DeleteEntry(aa1+pairName), DeleteEntry(aa2+pairName), DeleteEntry(type+pairName)]
+#       bbentry
+#   else throw("Only the Admin itself can invoke this function")
+# }
+
+#add new pool
+# @Callable(i)
+# func addPoolandSwap(pairName: String, lpAsset: String, asset_1: String, asset_2: String) = {
+#     let register = pairName
+#     let activate = getBooleanValue(this,"activate")
+#     let lp = getAssetIfValid(lpAsset)
+#     let asset1 = getAssetIfValid(asset_1)
+#     let asset2 = getAssetIfValid(asset_2)
+#     let PMAA = getString(this, register)
+#     if(activate)
+#      then if((i.caller == this))
+#       then if(isDefined(PMAA))
+#         then throw("The pool has been previously added.")
+#           else if(asset1 == asset2)
+#             then throw("Asset1 cannot be equal to Asset2 and vice versa")
+#             else [StringEntry(l+pairName, lp),StringEntry(aa1+register,asset1),StringEntry(aa2+register,asset2)]
+#      else throw("Only the Admin itself can invoke this function")
+#     else throw("dApp in maintenance")
+# }
+
 @Verifier(tx)
 func verify() = match tx {
     case _ => 
