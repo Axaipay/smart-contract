@@ -21,6 +21,10 @@ let la = "LEASE_AMOUNT_"
 let ix = "ID_"
 let rateFee = "percentage_rate_fee"
 
+#decimals for assets
+let D8 = 100000000
+let D6 = 1000000
+
 #smart contract address
 let contractAddress = Address(this.bytes)
 
@@ -66,9 +70,9 @@ func activate(v: Boolean) = {
 
 #activate and desactivate pools/swap/liquidity
 @Callable(i)
-func maintenance(pools: Boolean, swap: Boolean, liquidity: Boolean) = {
+func maintenance(pools: Boolean, swap: Boolean, stake: Boolean) = {
   if((i.caller == this))
-   then [BooleanEntry(poolAc, pools), BooleanEntry(swapAc, swap), BooleanEntry(liquidityAc, liquidity)]
+   then [BooleanEntry(poolAc, pools), BooleanEntry(swapAc, swap), BooleanEntry(liquidityAc, stake)]
   else throw("Only the Admin itself can invoke this function")
 }
 
@@ -76,7 +80,7 @@ func maintenance(pools: Boolean, swap: Boolean, liquidity: Boolean) = {
 @Callable(i)
 func percentualRateFeeEdit(rate: Int) = {
   if((i.caller == this))
-   then [BooleanEntry(rateFee, rate)]
+   then [IntegerEntry(rateFee, rate)]
   else throw("Only the Admin itself can invoke this function")
 }
 
@@ -88,35 +92,94 @@ func acceptWaves(activate: Boolean) = {
   else throw("Only the Admin itself can invoke this function")
 }
 
-#remove swap and pool
-# @Callable(i)
-# func removeSwapAndPool(pairName: String) = {
-#   let PMAA = getStringValue(this, pairName)
-#   if((i.caller == this))
-#      then let bbentry = [DeleteEntry(pairName),DeleteEntry("POOL_" + PMAA),DeleteEntry("lp_asset_"+PMAA),DeleteEntry(aa1+pairName), DeleteEntry(aa2+pairName), DeleteEntry(type+pairName)]
-#       bbentry
-#   else throw("Only the Admin itself can invoke this function")
-# }
+### add and remove stake ###
 
-#add new pool
-# @Callable(i)
-# func addPoolandSwap(pairName: String, lpAsset: String, asset_1: String, asset_2: String) = {
-#     let register = pairName
-#     let activate = getBooleanValue(this,"activate")
-#     let lp = getAssetIfValid(lpAsset)
-#     let asset1 = getAssetIfValid(asset_1)
-#     let asset2 = getAssetIfValid(asset_2)
-#     let PMAA = getString(this, register)
-#     if(activate)
-#      then if((i.caller == this))
-#       then if(isDefined(PMAA))
-#         then throw("The pool has been previously added.")
-#           else if(asset1 == asset2)
-#             then throw("Asset1 cannot be equal to Asset2 and vice versa")
-#             else [StringEntry(l+pairName, lp),StringEntry(aa1+register,asset1),StringEntry(aa2+register,asset2)]
-#      else throw("Only the Admin itself can invoke this function")
-#     else throw("dApp in maintenance")
-# }
+#stake main asset valid in smart contract
+@Callable(i)
+func deposit() = {
+  #main validations
+  let power = getBooleanValue(this, ac)
+  let liquidityPower = getBooleanValue(this, liquidityAc)
+  let acWaves = getBooleanValue(this, aWaves)
+
+  #payment 
+  let pmt = i.payments[0]
+  # let USDN = toBytes(getStringValue(this, usdn))
+  # let USDC = toBytes(getStringValue(this, usdc))
+  # let USDT = toBytes(getStringValue(this, usdt))
+  # let NGNN = toBytes(getStringValue(this, ngnn))
+  let MainAsset = toBytes(getStringValue(this, main))
+
+  #validation and more
+  if((power))
+   then if((liquidityPower))
+    then if((pmt.assetId != MainAsset))
+     then throw("Invalid Asset! Kindly Deposit Only A4tvKLB66QMmSJPXJgiajNnrtSjvqAapxTqhLzJbBNFX (AxAi).")
+    else {
+     let currentKey = toBase58String(i.caller.bytes)
+     let currentAmount = match getInteger(this, currentKey) { 
+       case a: Int => a 
+       case _ => 0 
+     }
+     let newAmount = (currentAmount + pmt.amount)
+     let useramount = IntegerEntry(currentKey, newAmount)
+     let userdepositheight = IntegerEntry(("Deposit_Height_Of_" + currentKey), height)
+     let previouslockbalance = getIntegerValue(this, "Total_Tokens_Locked:")
+     let totaltoken = (previouslockbalance + pmt.amount)
+     let TLV = IntegerEntry("Total_Tokens_Locked:", totaltoken)
+     [useramount, userdepositheight, TLV]
+    }
+   else throw("liquidity is currently under maintenance.")
+  else throw("dApp is currently under maintenance.")
+}
+
+#remove stake for main asset valid in smart contract
+@Callable(i)
+func remove(amount: Int) = {
+  #main validations
+  let power = getBooleanValue(this, ac)
+  let liquidityPower = getBooleanValue(this, liquidityAc)
+  let acWaves = getBooleanValue(this, aWaves)
+
+  #payment 
+  let pmt = i.payments[0]
+  # let USDN = toBytes(getStringValue(this, usdn))
+  # let USDC = toBytes(getStringValue(this, usdc))
+  # let USDT = toBytes(getStringValue(this, usdt))
+  # let NGNN = toBytes(getStringValue(this, ngnn))
+  let MainAsset = toBytes(getStringValue(this, main))
+
+  #validation and more
+  if((power))
+   then if((liquidityPower))
+    then if((pmt.assetId != MainAsset))
+     then throw("Invalid Asset! Kindly Deposit Only " + toBase58String(MainAsset))
+    else {
+    let currentKey = toBase58String(i.caller.bytes)
+    let currentAmount = match getInteger(this, currentKey) {
+        case a: Int => a
+        case _ => 0
+    }
+    let newAmount = (currentAmount - (amount * D8))
+    let swapheightkeyname = ("Deposit_Height_Of_" + currentKey)
+    let previouslockbalance = getIntegerValue(this, "Total_Tokens_Locked:")
+    let totaltoken = (previouslockbalance - (amount * D8))
+    let diff = (height - getIntegerValue(this, swapheightkeyname))
+    if ((0 > amount))
+      then throw("Can't withdraw negative AxAi amount")
+      else if ((0 > newAmount))
+        then throw("Not enough AxAi balance")
+          else [
+            IntegerEntry(currentKey, newAmount), 
+            IntegerEntry("Total_Tokens_Locked:", totaltoken),
+            ScriptTransfer(i.caller, (amount * D8), MainAsset), 
+            ScriptTransfer(i.caller, (((diff * amount) * 4) / 1440), MainAsset)
+            ]
+    }
+   else throw("liquidity is currently under maintenance.")
+  else throw("dApp is currently under maintenance.")
+}
+
 
 @Verifier(tx)
 func verify() = match tx {
